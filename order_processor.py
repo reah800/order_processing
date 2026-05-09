@@ -88,3 +88,27 @@ def master_process(num_workers, shared_orders, lock):
         )
 
     print(flush=True)
+
+# Wait for all workers to finish
+    for rank in range(1, num_workers + 1):
+        ack = comm.recv(source=rank, tag=20)
+        print(f"[Master] Worker {ack['worker']} has finished all its orders.", flush=True)
+
+   
+    print("\n" + "=" * 55, flush=True)
+    print("         FINAL COMPLETED ORDERS (from shared memory)", flush=True)
+    print("=" * 55, flush=True)
+
+    completed = sorted(list(shared_orders), key=lambda x: x["order_id"])
+
+    for entry in completed:
+        print(
+            f"  Order #{entry['order_id']:>2} | {entry['item']:<12} | "
+            f"Worker {entry['handled_by']} | "
+            f"{entry['delay_sec']}s | {entry['status']}",
+            flush=True
+        )
+
+    print("=" * 55, flush=True)
+    print(f"  Total orders processed: {len(completed)} / {num_orders}", flush=True)
+    print("=" * 55 + "\n", flush=True)
