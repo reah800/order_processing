@@ -53,3 +53,38 @@ def worker_process(rank, shared_orders, lock):
 
     
     comm.send({"worker": rank, "done": True}, dest=0, tag=20)
+
+# MASTER FUNCTION
+def master_process(num_workers, shared_orders, lock):
+    comm = MPI.COMM_WORLD
+
+    # Generate 5–8 random orders
+    num_orders = random.randint(5, 8)
+    orders = [
+        {"id": i + 1, "item": random.choice(ITEMS)}
+        for i in range(num_orders)
+    ]
+
+    print(f"\n[Master] Generated {num_orders} orders:", flush=True)
+    for o in orders:
+        print(f"         Order #{o['id']} — {o['item']}", flush=True)
+    print(flush=True)
+
+    # Distribute orders round-robin to workers
+    assignment = {rank: [] for rank in range(1, num_workers + 1)}
+    for idx, order in enumerate(orders):
+        target_rank = (idx % num_workers) + 1
+        assignment[target_rank].append(order)
+
+    # Send each worker its order count, then the orders
+    for rank in range(1, num_workers + 1):
+        worker_orders = assignment[rank]
+        comm.send(len(worker_orders), dest=rank, tag=10)
+        for order in worker_orders:
+            comm.send(order, dest=rank, tag=11)
+        print(
+            f"[Master] Sent {len(worker_orders)} order(s) to Worker {rank}",
+            flush=True
+        )
+
+    print(flush=True)
