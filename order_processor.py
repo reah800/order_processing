@@ -128,3 +128,16 @@ if __name__ == "__main__":
         exit(1)
 
     num_workers = size - 1
+
+# Initialize shared memory BEFORE branching into master/worker
+    manager = Manager()
+    shared_orders = manager.list()
+    lock = Lock()
+
+    if rank == 0:
+        print(f"\n[Master] Starting with {num_workers} worker(s)...\n", flush=True)
+        master_process(num_workers, shared_orders, lock)
+    else:
+        worker_process(rank, shared_orders, lock)
+
+    comm.Barrier()
