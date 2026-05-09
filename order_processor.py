@@ -112,3 +112,19 @@ def master_process(num_workers, shared_orders, lock):
     print("=" * 55, flush=True)
     print(f"  Total orders processed: {len(completed)} / {num_orders}", flush=True)
     print("=" * 55 + "\n", flush=True)
+
+
+# ENTRY POINT
+if __name__ == "__main__":
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    if size < 2:
+        if rank == 0:
+            print("ERROR: Run with at least 2 processes.")
+            print("Example: mpiexec -n 4 python order_processor.py")
+        MPI.Finalize()
+        exit(1)
+
+    num_workers = size - 1
