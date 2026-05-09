@@ -1,0 +1,21 @@
+Reahlyn S. Ermita  CS3C
+
+Reflection Questions — Distributed Order Processing
+
+1. How did you distribute orders among worker processes?
+I distributed the orders using a round-robin approach. What I did was have the master process (rank 0) generate 5–8 random orders and then assign them one by one to each worker, cycling through them in order. So for example, if I had 3 workers, Order 1 went to Worker 1, Order 2 went to Worker 2, Order 3 went to Worker 3, and then Order 4 went back to Worker 1 again. I used comm.send() to first tell each worker how many orders it would receive, and then sent the actual orders one at a time. The workers received them using comm.recv() with matching tags.
+
+2. What happens if there are more orders than workers?
+What I noticed is that when there are more orders than workers, the extra orders just wrap back around to the earlier workers. For instance, when I had 3 workers but 7 orders, Worker 1 ended up handling Orders 1, 4, and 7 while Worker 2 got Orders 2 and 5, and Worker 3 got Orders 3 and 6. Each worker just loops through however many orders it was assigned, so no order gets skipped or lost. I made sure every order was assigned before any processing started, so the full workload always gets completed even when the distribution isn't perfectly even.
+
+3. How did processing delays affect the order completion?
+I added a time.sleep() call in each worker with a random delay between 0.5 and 2.0 seconds to simulate real processing time, like what would happen with a database write or an external API call. Because each worker is its own separate MPI process, they all run in parallel and don't wait for each other. What I observed is that orders don't finish in the same order they were sent — a worker with a shorter delay finishes earlier even if it received its order later. This made the output look out of order sometimes, which I thought was actually a realistic behavior of how distributed systems work in the real world.
+
+4. How did you implement shared memory, and where was it initialized?
+I implemented shared memory using multiprocessing.Manager().list(). The way it works is that the Manager starts a background server process that manages the shared list and lets all the MPI processes access it. I made sure to initialize it before the if rank == 0 branch so that both the master and all the workers would have access to the same shared_orders list from the beginning. After each worker finished processing an order, I had it append a dictionary with details like the order ID, item name, which worker handled it, how long it took, and the status. Then at the end, the master just reads the full list and prints the summary.
+
+5. What issues occurred when multiple workers wrote to shared memory simultaneously?
+When I first ran the system without any synchronization, I noticed that the results were sometimes incomplete or inconsistent. What was happening is that multiple workers were trying to append to the shared list at the same time, which caused a race condition. Because the timing of each process is unpredictable, some writes would overlap and entries would end up getting lost. There were cases where I processed 6 orders but the master only showed 5 in the final list. It made me realize that without controlling access to shared memory, you really can't trust the output.
+
+6. How did you ensure consistent results when using multiple processes?
+To fix the race condition, I used a multiprocessing.Lock() to protect the part of the code where workers write to the shared list. I wrapped the append() call inside a with lock: block, which makes sure only one worker at a time can write to shared_orders. If another worker tries to write while the lock is held, it just waits until the first one is done. I initialized the lock in the same place as the Manager, before branching into master and worker logic, so all processes share the same lock. After adding this, the master consistently printed the correct number of completed orders every single time.
