@@ -41,3 +41,31 @@ Reflection Questions — Distributed Order Processing
 
 How did you ensure consistent results when using multiple processes?
 - I solved the synchronization problem by using multiprocessing.Lock(). The lock was applied around the part where workers added data into the shared list. Using with lock: ensured that only one process could update the memory at a time, while the others waited for their turn. I initialized the lock together with the shared memory setup before the master and workers started running separately. After adding the lock, the output became stable and all processed orders were recorded correctly every run.
+
+Anne Margarette G. Daniel
+
+Reflection Questions - Distributed Order Processing
+
+1. How did you distribute orders among worker processes?
+
+The orders were distributed by the master process using round-robin assignment. The master first created around 5 to 8 orders with IDs and item names, then it sent them one by one to the workers. Each worker received different orders depending on their rank. This helped divide the tasks more equally between the worker processes and made sure every worker had something to process.
+
+2. What happens if there are more orders than workers?
+
+If there are more orders than workers, then some workers will handle more than one order. The master just keeps sending orders in sequence until all orders are assigned. Because of this, workers may process multiple tasks while others finish earlier, but overall the work is still balanced between all workers in the system.
+
+3. How did processing delays affect the order completion?
+
+The processing delays changed the order of completion because every worker had a random waiting time using time.sleep(). Some workers finished faster while others took longer, so the completed orders were not always in the same order they were assigned. This showed that the workers were processing independently and running at the same time.
+
+4. How did you implement shared memory, and where was it initialized?
+
+Shared memory was implemented using Manager().list() which created a shared list called shared_orders. It was initialized in the main part of the program before the master and worker processes started running separately. Workers added their completed orders into this shared list, and later the master process collected and printed all the results from it.
+
+5. What issues occurred when multiple workers wrote to shared memory simultaneously?
+
+When multiple workers wrote to the shared memory at the same time without synchronization, some problems could happen. The data inside the shared list could become inconsistent, missing, or mixed because many workers were trying to update it together. This is called a race condition and it can make the final output unreliable sometimes.
+
+6. How did you ensure consistent results when using multiple processes?
+
+To make the results consistent, a Lock() was used before workers wrote to the shared list. The lock allowed only one worker at a time to access the critical section where the data was being added. Because of this, the shared memory stayed organized and complete, and the master was able to print the correct final list of processed orders.
