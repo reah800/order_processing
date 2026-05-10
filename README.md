@@ -25,3 +25,28 @@ When I first ran the system without any synchronization, I noticed that the resu
 6. How did you ensure consistent results when using multiple processes?
 
 To fix the race condition, I used a multiprocessing.Lock() to protect the part of the code where workers write to the shared list. I wrapped the append() call inside a with lock: block, which makes sure only one worker at a time can write to shared_orders. If another worker tries to write while the lock is held, it just waits until the first one is done. I initialized the lock in the same place as the Manager, before branching into master and worker logic, so all processes share the same lock. After adding this, the master consistently printed the correct number of completed orders every single time.
+
+Carmichael M. Damalan CS3C
+1. How did you distribute orders among worker processes?
+
+The orders were divided using a round-robin technique. The master process, which is rank 0, created around 5–8 random orders and sent them to workers one after another. If there were 3 workers, the first order was sent to Worker 1, the second to Worker 2, the third to Worker 3, and then the next order started again from Worker 1. I used comm.send() to tell workers how many orders they would handle before sending the actual order data. On the worker side, the orders were accepted using comm.recv() with the correct tags.
+
+2. What happens if there are more orders than workers?
+
+If the number of orders is larger than the number of workers, the remaining orders are simply shared again starting from the first worker. For example, with 7 orders and 3 workers, some workers receive more tasks than others. Worker 1 may process Orders 1, 4, and 7, while the others handle the remaining orders. Since every worker loops through all assigned tasks, all orders are still completed even when the workload is uneven.
+
+3. How did processing delays affect the order completion?
+
+To imitate real system processing, I added a random delay using time.sleep() between 0.5 and 2 seconds. This delay represented situations like database access or API requests. Because MPI workers run independently, they process tasks at the same time instead of waiting for one another. As a result, some orders finished earlier even though they were assigned later. The final output sometimes appeared mixed or out of sequence, which is common in distributed systems.
+
+4. How did you implement shared memory, and where was it initialized?
+
+Shared memory was implemented with multiprocessing.Manager().list(). This shared list allowed all processes to store and access completed order information. I initialized both the Manager and the shared list before separating the master and worker processes so they could all access the same memory space. Whenever a worker completed an order, it inserted information like the order number, item, worker ID, processing time, and status into the shared list. The master process later displayed all completed results.
+
+5. What issues occurred when multiple workers wrote to shared memory simultaneously?
+
+When there was no synchronization, the shared memory sometimes produced incorrect results. Multiple workers tried to update the shared list at the same time, which caused a race condition. Due to this conflict, some entries disappeared or were not saved correctly. There were tests where several orders were processed, but not all of them appeared in the final output. This showed the importance of controlling access to shared resources in parallel systems.
+
+6. How did you ensure consistent results when using multiple processes?
+
+I solved the synchronization problem by using multiprocessing.Lock(). The lock was applied around the part where workers added data into the shared list. Using with lock: ensured that only one process could update the memory at a time, while the others waited for their turn. I initialized the lock together with the shared memory setup before the master and workers started running separately. After adding the lock, the output became stable and all processed orders were recorded correctly every run.
